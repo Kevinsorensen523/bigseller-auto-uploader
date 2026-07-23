@@ -91,9 +91,14 @@ bigseller-ui
 ```
 
 Buka `http://127.0.0.1:5151`. Isi form: store, nama produk, kategori (keyword
-pencarian), deskripsi, berat, brand, upload foto + video, dan varian (bisa
-tambah baris sebanyak apa pun, tiap baris punya SKU/harga/stock sendiri -
-harga/stock **boleh beda-beda per varian**).
+pencarian), deskripsi, berat, brand, upload foto + video, dan varian - harga/stock
+**boleh beda-beda per varian**. Ada dua cara isi varian:
+
+- **Ketik manual** - tambah baris satu-satu, cocok buat varian sedikit.
+- **Upload Excel/CSV** - download dulu template-nya (tombol "Download Template
+  Excel" di form), isi kolom `value`/`sku`/`price`/`stock` (nama kolom Indonesia
+  seperti `nilai`/`harga`/`stok` juga dikenali), lalu upload. Cocok buat produk
+  dengan puluhan varian (mis. semua tipe iPhone/Samsung) daripada ngetik satu-satu.
 
 Submit **tidak langsung upload** - tersimpan sebagai job di `jobs/pending/`.
 Review dulu di halaman `/queue`, baru proses beneran pakai CLI di bawah.
@@ -192,6 +197,7 @@ bigseller_auto_uploader/   # package inti (importable, terinstall via pip)
   main.py                   #   mode CSV batch
   cli.py                    #   entry point `bigseller-upload`
   webapp.py                 #   entry point `bigseller-ui` (Flask)
+  variant_file.py           #   parser upload Excel/CSV varian + generator template
   templates/                #   HTML form web UI
 data/                       # products.csv, variants.csv, foto/video (gitignored)
 jobs/{pending,done,failed}/ # antrian job dari web UI (gitignored)

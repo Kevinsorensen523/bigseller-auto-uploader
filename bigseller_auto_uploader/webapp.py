@@ -1,9 +1,10 @@
 import json
 import uuid
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, send_file, url_for
 
 from . import config
+from .variant_file import build_template_xlsx, parse_variant_file
 
 app = Flask(__name__)
 app.secret_key = "bigseller-local-ui"  # UI ini cuma jalan di localhost, tanpa auth
@@ -38,21 +39,26 @@ def submit():
         video_file.save(job_dir / video_file.filename)
         video_filename = video_file.filename
 
-    values = request.form.getlist("variant_value")
-    skus = request.form.getlist("variant_sku")
-    prices = request.form.getlist("variant_price")
-    stocks = request.form.getlist("variant_stock")
-    variants = []
-    for value, sku, price, stock in zip(values, skus, prices, stocks):
-        if value.strip():
-            variants.append(
-                {
-                    "value": value.strip(),
-                    "sku": sku.strip(),
-                    "price": int(price or 0),
-                    "stock": int(stock or 0),
-                }
-            )
+    variants_file = request.files.get("variants_file")
+    if variants_file and variants_file.filename:
+        # Excel/CSV yang diupload menang - baris yang diketik manual di form diabaikan.
+        variants = parse_variant_file(variants_file)
+    else:
+        values = request.form.getlist("variant_value")
+        skus = request.form.getlist("variant_sku")
+        prices = request.form.getlist("variant_price")
+        stocks = request.form.getlist("variant_stock")
+        variants = []
+        for value, sku, price, stock in zip(values, skus, prices, stocks):
+            if value.strip():
+                variants.append(
+                    {
+                        "value": value.strip(),
+                        "sku": sku.strip(),
+                        "price": int(price or 0),
+                        "stock": int(stock or 0),
+                    }
+                )
 
     job = {
         "job_id": job_id,
@@ -79,6 +85,17 @@ def submit():
         f"Jalankan `bigseller-upload run-queue` di terminal untuk proses upload."
     )
     return redirect(url_for("queue"))
+
+
+@app.route("/variant-template.xlsx")
+def variant_template():
+    buffer = build_template_xlsx()
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="template-varian.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @app.route("/queue")
