@@ -1,0 +1,29 @@
+.env
+.playwright_session.json
+__pycache__/
+*.pyc
+.venv/
+venv/
+logs/
+output_report.csv
+
+# Data produk asli (foto, video, CSV) - proprietary, jangan ikut ke repo publik.
+# Struktur folder tetap ada lewat data/.gitkeep & data/images/.gitkeep.
+data/*
+!data/.gitkeep
+!data/images/
+data/images/*
+!data/images/.gitkeep
+
+# Antrian job dari web UI - berisi data produk & file media asli juga.
+jobs/pending/*
+jobs/done/*
+jobs/failed/*
+!jobs/pending/.gitkeep
+!jobs/done/.gitkeep
+!jobs/failed/.gitkeep
+
+# Package build artifacts
+*.egg-info/
+build/
+dist/

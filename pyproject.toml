@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bigseller-auto-uploader"
+version = "0.1.0"
+description = "Playwright automation untuk login BigSeller dan menambahkan produk+varian ke Shopee dari CSV atau web form lokal."
+requires-python = ">=3.10"
+dependencies = [
+    "playwright>=1.61.0",
+    "python-dotenv>=1.2.2",
+    "flask>=3.0.0",
+]
+
+[project.scripts]
+bigseller-upload = "bigseller_auto_uploader.cli:main"
+bigseller-ui = "bigseller_auto_uploader.webapp:main"
+
+[tool.setuptools.packages.find]
+include = ["bigseller_auto_uploader*"]
+
+[tool.setuptools.package-data]
+bigseller_auto_uploader = ["templates/*.html", "static/*"]

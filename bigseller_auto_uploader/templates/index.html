@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>BigSeller Auto Uploader - Tambah Produk</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 22px; }
+  fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; padding: 16px 20px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  label { display: block; font-size: 13px; color: #444; margin-top: 12px; margin-bottom: 4px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;
+  }
+  textarea { min-height: 120px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 6px; text-align: left; }
+  th { font-size: 12px; color: #666; font-weight: 600; }
+  td input { width: 100%; }
+  .btn { background: #4934b2; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  .btn.secondary { background: #eee; color: #333; }
+  .btn.small { padding: 5px 10px; font-size: 12px; }
+  .flash { background: #eafbea; border: 1px solid #8bd98b; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
+  .hint { font-size: 12px; color: #888; margin-top: 4px; }
+  .single-fields, .variant-fields { display: none; }
+  .mode-single .single-fields { display: block; }
+  .mode-variant .variant-fields { display: block; }
+</style>
+</head>
+<body>
+
+<h1>Tambah Produk ke Antrian BigSeller</h1>
+<p class="hint">Isi form ini lalu Submit. Produk TIDAK langsung diupload - tersimpan sebagai job di antrian.
+Jalankan <code>bigseller-upload run-queue</code> di terminal untuk memprosesnya (default: Save to Draft).</p>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="post" action="{{ url_for('submit') }}" enctype="multipart/form-data" id="jobForm">
+
+  <fieldset>
+    <legend>Informasi Dasar</legend>
+    <label>Store Shopee (nama persis seperti di dropdown BigSeller) *</label>
+    <input type="text" name="store_name" required placeholder="mis. Click Acc Shopee">
+
+    <label>Nama Produk *</label>
+    <input type="text" name="product_name" required maxlength="255">
+
+    <div class="row">
+      <div>
+        <label>Kata kunci pencarian kategori *</label>
+        <input type="text" name="category_keyword" required placeholder="mis. Pelindung Layar">
+      </div>
+      <div>
+        <label>Teks kategori spesifik (opsional)</label>
+        <input type="text" name="category_match_text" placeholder="mis. Pelindung Layar Handphone">
+      </div>
+    </div>
+    <p class="hint">Kalau kosong, hasil pencarian pertama otomatis dipilih.</p>
+
+    <label>Deskripsi Produk *</label>
+    <textarea name="description" required></textarea>
+
+    <div class="row">
+      <div>
+        <label>Berat per unit (gram) *</label>
+        <input type="number" name="weight_grams" required min="1" value="50">
+      </div>
+      <div>
+        <label>Brand</label>
+        <input type="text" name="brand" value="Tidak ada merek">
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Media</legend>
+    <label>Foto Produk (bisa pilih banyak file, JPG/JPEG/PNG) *</label>
+    <input type="file" name="images" accept=".jpg,.jpeg,.png" multiple required>
+
+    <label>Video Produk (opsional, MP4, maks 30MB, 10-60 detik)</label>
+    <input type="file" name="video" accept=".mp4">
+    <p class="hint">Video resolusi tinggi (di atas ~1080p) sering gagal ter-upload di BigSeller walau ukurannya kecil - kompres/downscale dulu kalau perlu.</p>
+  </fieldset>
+
+  <fieldset id="variantSection">
+    <legend>Varian</legend>
+    <label>
+      <input type="radio" name="variant_mode" value="single" checked onclick="setMode('single')"> Tanpa varian (1 harga/stock)
+    </label>
+    <label>
+      <input type="radio" name="variant_mode" value="variant" onclick="setMode('variant')"> Ada varian (mis. Warna, Ukuran, Tipe HP)
+    </label>
+
+    <div class="single-fields">
+      <div class="row">
+        <div>
+          <label>Harga (IDR) *</label>
+          <input type="number" name="single_price" min="0">
+        </div>
+        <div>
+          <label>Stock *</label>
+          <input type="number" name="single_stock" min="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-fields">
+      <label>Nama Dimensi Varian (maks 14 karakter) *</label>
+      <input type="text" name="dimension_name" maxlength="14" placeholder="mis. Tipe iPhone">
+
+      <table id="variantTable">
+        <thead>
+          <tr><th>Nilai (maks 20 char)</th><th>SKU</th><th>Harga (IDR)</th><th>Stock</th><th></th></tr>
+        </thead>
+        <tbody id="variantRows"></tbody>
+      </table>
+      <button type="button" class="btn secondary small" onclick="addVariantRow()">+ Tambah baris varian</button>
+    </div>
+  </fieldset>
+
+  <button type="submit" class="btn">Simpan ke Antrian</button>
+</form>
+
+<script>
+function setMode(mode) {
+  document.getElementById('variantSection').className = 'mode-' + mode;
+  document.querySelectorAll('.single-fields input').forEach(el => el.required = (mode === 'single'));
+  document.querySelector('input[name=dimension_name]').required = (mode === 'variant');
+}
+
+function addVariantRow(value, sku, price, stock) {
+  const tbody = document.getElementById('variantRows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" name="variant_value" maxlength="20" value="${value || ''}"></td>
+    <td><input type="text" name="variant_sku" value="${sku || ''}"></td>
+    <td><input type="number" name="variant_price" min="0" value="${price || ''}"></td>
+    <td><input type="number" name="variant_stock" min="0" value="${stock || ''}"></td>
+    <td><button type="button" class="btn secondary small" onclick="this.closest('tr').remove()">Hapus</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+setMode('single');
+addVariantRow();
+addVariantRow();
+</script>
+
+</body>
+</html>
