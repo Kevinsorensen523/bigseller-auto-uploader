@@ -114,13 +114,19 @@ otomatis dengan retry). Hasilnya tersimpan di
 `bigseller_auto_uploader/data_files/categories_shopee_id.json` dan otomatis
 kepakai lagi di web UI.
 
-Ada dua cara isi varian:
+Ada tiga cara isi varian:
 
 - **Ketik manual** - tambah baris satu-satu, cocok buat varian sedikit.
 - **Upload Excel/CSV** - download dulu template-nya (tombol "Download Template
   Excel" di form), isi kolom `value`/`sku`/`price`/`stock` (nama kolom Indonesia
   seperti `nilai`/`harga`/`stok` juga dikenali), lalu upload. Cocok buat produk
   dengan puluhan varian (mis. semua tipe iPhone/Samsung) daripada ngetik satu-satu.
+- **Pakai AI (ChatGPT/Gemini/Claude/dll)** - gak butuh API key sama sekali.
+  Isi kolom "SKU Prefix", copy prompt yang sudah otomatis terisi, tempel ke AI
+  apa pun bareng teks mentah produk kamu (judul + deskripsi + daftar tipe),
+  lalu tempel balik hasil JSON dari AI itu ke kotak di bawahnya dan klik "Muat
+  ke Tabel Varian" - baris varian otomatis terisi (SKU, harga, stock ikut
+  ke-generate sesuai instruksi di prompt), tinggal direview sebelum submit.
 
 Submit **tidak langsung upload** - tersimpan sebagai job di `jobs/pending/`.
 Review dulu di halaman `/queue`, baru proses beneran pakai CLI di bawah.

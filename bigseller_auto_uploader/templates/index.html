@@ -27,9 +27,11 @@
   .single-fields, .variant-fields { display: none; }
   .mode-single .single-fields { display: block; }
   .mode-variant .variant-fields { display: block; }
-  .variant-manual, .variant-upload { display: none; }
+  .variant-manual, .variant-upload, .variant-ai { display: none; }
   .variant-input-manual .variant-manual { display: block; }
   .variant-input-file .variant-upload { display: block; }
+  .variant-input-ai .variant-ai { display: block; }
+  #aiResultBox { min-height: 100px; font-family: monospace; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -118,8 +120,11 @@ Jalankan <code>bigseller-upload run-queue</code> di terminal untuk memprosesnya 
       <label style="display:inline-block; margin-right:20px; font-weight:400;">
         <input type="radio" name="variant_input_mode" value="manual" checked onclick="setVariantInputMode('manual')"> Ketik manual
       </label>
-      <label style="display:inline-block; font-weight:400;">
+      <label style="display:inline-block; margin-right:20px; font-weight:400;">
         <input type="radio" name="variant_input_mode" value="file" onclick="setVariantInputMode('file')"> Upload Excel/CSV
+      </label>
+      <label style="display:inline-block; font-weight:400;">
+        <input type="radio" name="variant_input_mode" value="ai" onclick="setVariantInputMode('ai')"> Pakai AI (ChatGPT/Gemini/Claude)
       </label>
 
       <div class="variant-manual">
@@ -137,6 +142,24 @@ Jalankan <code>bigseller-upload run-queue</code> di terminal untuk memprosesnya 
         <a href="{{ url_for('variant_template') }}" class="btn secondary small">Download Template Excel</a>
         <label style="margin-top:12px;">File Excel (.xlsx) atau CSV *</label>
         <input type="file" name="variants_file" accept=".xlsx,.xls,.csv">
+      </div>
+
+      <div class="variant-ai">
+        <p class="hint">Malas ketik satu-satu? Isi SKU Prefix di bawah, copy prompt-nya, tempel ke AI apa
+        pun (ChatGPT, Gemini, Claude, dll) bareng teks mentah produk kamu (judul + deskripsi + daftar tipe),
+        lalu tempel balik hasil JSON dari AI itu ke kotak paling bawah.</p>
+
+        <label>SKU Prefix (dipakai di prompt, mis. TG-KA-A14-IPHONE)</label>
+        <input type="text" id="aiSkuPrefix" placeholder="TG-KA-A14-IPHONE">
+
+        <label style="margin-top:12px;">1. Copy prompt ini:</label>
+        <textarea id="aiPromptBox" readonly style="min-height:200px; font-family:monospace; font-size:12px;"></textarea>
+        <button type="button" class="btn secondary small" onclick="copyAiPrompt()">Copy Prompt</button>
+
+        <label style="margin-top:16px;">2. Tempel hasil JSON dari AI di sini:</label>
+        <textarea id="aiResultBox" placeholder='[{"value": "X/XS", "sku": "TG-KA-A14-IPHONE-X-XS", "price": 185000, "stock": 1000}, ...]'></textarea>
+        <button type="button" class="btn small" onclick="loadAiResult()">Muat ke Tabel Varian</button>
+        <p class="hint" id="aiLoadStatus"></p>
       </div>
     </div>
   </fieldset>
@@ -167,6 +190,68 @@ function addVariantRow(value, sku, price, stock) {
     <td><button type="button" class="btn secondary small" onclick="this.closest('tr').remove()">Hapus</button></td>
   `;
   tbody.appendChild(tr);
+}
+
+function buildAiPrompt() {
+  const prefix = document.getElementById('aiSkuPrefix').value.trim() || '<SKU_PREFIX>';
+  return `Kamu akan menerima teks mentah berisi info produk & daftar varian (nama tipe/warna/ukuran, biasanya juga ada harga dan stock).
+
+Tugasmu: ekstrak SEMUA varian dari teks itu dan keluarkan HANYA satu JSON array (tanpa markdown code fence, tanpa penjelasan apa pun), format persis:
+
+[
+  {"value": "<nama varian apa adanya>", "sku": "<SKU>", "price": <angka>, "stock": <angka>},
+  ...
+]
+
+Aturan:
+1. "value": tulis persis seperti di teks asli (boleh rapikan spasi ganda), JANGAN memecah satu baris jadi beberapa (mis. "X/XS" tetap satu value "X/XS", bukan dipecah jadi "X" dan "XS").
+2. "sku": gabungkan prefix "${prefix}" dengan value yang sudah dibersihkan - hapus semua spasi, ganti "/" jadi "-". Contoh: value "11 PRO MAX" -> sku "${prefix}-11PROMAX". Value "X/XS" -> sku "${prefix}-X-XS".
+3. "price" dan "stock": ambil angka yang disebutkan di teks (mis. "harga 185rb" -> 185000, "stock 1000" -> 1000) dan terapkan SAMA ke semua baris, kecuali teks eksplisit menyebutkan angka berbeda per varian.
+4. Jangan melewati atau menduplikasi baris apa pun dari daftar varian di teks asli.
+5. Output HANYA array JSON valid - tidak ada teks lain sebelum atau sesudahnya.
+
+Teks produk:
+"""
+<TEMPEL TEKS PRODUK KAMU DI SINI>
+"""`;
+}
+
+document.getElementById('aiSkuPrefix').addEventListener('input', () => {
+  document.getElementById('aiPromptBox').value = buildAiPrompt();
+});
+document.getElementById('aiPromptBox').value = buildAiPrompt();
+
+function copyAiPrompt() {
+  const box = document.getElementById('aiPromptBox');
+  box.select();
+  navigator.clipboard.writeText(box.value).then(() => {
+    document.getElementById('aiLoadStatus').textContent = 'Prompt disalin ke clipboard.';
+  }).catch(() => {
+    document.execCommand('copy');
+  });
+}
+
+function loadAiResult() {
+  const status = document.getElementById('aiLoadStatus');
+  let data;
+  try {
+    data = JSON.parse(document.getElementById('aiResultBox').value);
+  } catch (e) {
+    status.textContent = 'JSON tidak valid: ' + e.message;
+    return;
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    status.textContent = 'JSON harus berupa array berisi minimal 1 varian.';
+    return;
+  }
+
+  document.getElementById('variantRows').innerHTML = '';
+  data.forEach(item => addVariantRow(item.value, item.sku, item.price, item.stock));
+
+  // Pindah ke tab "Ketik manual" supaya user bisa review/edit hasilnya sebelum submit.
+  document.querySelector('input[name=variant_input_mode][value=manual]').checked = true;
+  setVariantInputMode('manual');
+  status.textContent = `${data.length} varian dimuat ke tabel - silakan review sebelum submit.`;
 }
 
 setMode('single');
