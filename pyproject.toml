@@ -22,4 +22,4 @@ bigseller-ui = "bigseller_auto_uploader.webapp:main"
 include = ["bigseller_auto_uploader*"]
 
 [tool.setuptools.package-data]
-bigseller_auto_uploader = ["templates/*.html", "static/*"]
+bigseller_auto_uploader = ["templates/*.html", "static/*", "data_files/*.json"]

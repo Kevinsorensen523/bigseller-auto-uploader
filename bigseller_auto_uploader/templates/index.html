@@ -54,17 +54,14 @@ Jalankan <code>bigseller-upload run-queue</code> di terminal untuk memprosesnya 
     <label>Nama Produk *</label>
     <input type="text" name="product_name" required maxlength="255">
 
-    <div class="row">
-      <div>
-        <label>Kata kunci pencarian kategori *</label>
-        <input type="text" name="category_keyword" required placeholder="mis. Pelindung Layar">
-      </div>
-      <div>
-        <label>Teks kategori spesifik (opsional)</label>
-        <input type="text" name="category_match_text" placeholder="mis. Pelindung Layar Handphone">
-      </div>
+    <label>Kategori *</label>
+    <div style="position:relative;">
+      <input type="text" id="categoryBox" autocomplete="off" placeholder="Ketik untuk cari kategori, mis. Pelindung Layar">
+      <div id="categoryResults" style="display:none; position:absolute; z-index:10; background:#fff; border:1px solid #ccc; border-radius:6px; width:100%; max-height:260px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.1);"></div>
     </div>
-    <p class="hint">Kalau kosong, hasil pencarian pertama otomatis dipilih.</p>
+    <input type="hidden" name="category_keyword" id="categoryKeyword" required>
+    <input type="hidden" name="category_match_text" id="categoryMatchText">
+    <p class="hint" id="categoryHint">Mengetik akan mencari dari daftar kategori Shopee yang sudah di-scrape. Kalau daftar belum tersedia, ketikan Anda dipakai sebagai kata kunci pencarian langsung di BigSeller saat upload.</p>
 
     <label>Deskripsi Produk *</label>
     <textarea name="description" required></textarea>
@@ -176,6 +173,62 @@ setMode('single');
 setVariantInputMode('manual');
 addVariantRow();
 addVariantRow();
+
+// --- Autocomplete kategori, dari daftar hasil scrape (/categories.json) ---
+let allCategories = [];
+fetch('/categories.json')
+  .then(r => r.json())
+  .then(data => {
+    allCategories = data.categories || [];
+    const hint = document.getElementById('categoryHint');
+    if (allCategories.length === 0) {
+      hint.textContent = 'Daftar kategori belum di-scrape - ketikan Anda dipakai sebagai kata kunci pencarian langsung di BigSeller saat upload.';
+    } else {
+      hint.textContent = allCategories.length + ' kategori tersedia untuk dicari.';
+    }
+  })
+  .catch(() => {});
+
+const categoryBox = document.getElementById('categoryBox');
+const categoryResults = document.getElementById('categoryResults');
+const categoryKeyword = document.getElementById('categoryKeyword');
+const categoryMatchText = document.getElementById('categoryMatchText');
+
+categoryBox.addEventListener('input', () => {
+  const q = categoryBox.value.trim().toLowerCase();
+  // Fallback: kalau daftar kosong (belum pernah di-scrape), ketikan langsung
+  // dipakai sebagai keyword pencarian di BigSeller saat upload nanti.
+  categoryKeyword.value = categoryBox.value.trim();
+  categoryMatchText.value = '';
+
+  if (!q || allCategories.length === 0) {
+    categoryResults.style.display = 'none';
+    return;
+  }
+  const matches = allCategories.filter(c => c.path.toLowerCase().includes(q)).slice(0, 20);
+  if (matches.length === 0) {
+    categoryResults.style.display = 'none';
+    return;
+  }
+  categoryResults.innerHTML = matches.map(c =>
+    `<div class="cat-option" data-path="${c.path.replace(/"/g, '&quot;')}" style="padding:8px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid #f0f0f0;">${c.path}</div>`
+  ).join('');
+  categoryResults.style.display = 'block';
+});
+
+categoryResults.addEventListener('click', (e) => {
+  const opt = e.target.closest('.cat-option');
+  if (!opt) return;
+  const path = opt.dataset.path;
+  categoryBox.value = path;
+  categoryKeyword.value = path.split('/').pop();
+  categoryMatchText.value = path;
+  categoryResults.style.display = 'none';
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target !== categoryBox) categoryResults.style.display = 'none';
+});
 </script>
 
 </body>

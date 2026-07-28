@@ -4,6 +4,7 @@ import uuid
 from flask import Flask, flash, redirect, render_template, request, send_file, url_for
 
 from . import config
+from .scrape_categories import load_categories
 from .variant_file import build_template_xlsx, parse_variant_file
 
 app = Flask(__name__)
@@ -96,6 +97,11 @@ def variant_template():
         download_name="template-varian.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@app.route("/categories.json")
+def categories_json():
+    return {"categories": load_categories()}
 
 
 @app.route("/queue")

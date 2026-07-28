@@ -90,9 +90,31 @@ sesi masih valid.
 bigseller-ui
 ```
 
-Buka `http://127.0.0.1:5151`. Isi form: store, nama produk, kategori (keyword
-pencarian), deskripsi, berat, brand, upload foto + video, dan varian - harga/stock
-**boleh beda-beda per varian**. Ada dua cara isi varian:
+Buka `http://127.0.0.1:5151`. Isi form: store, nama produk, kategori, deskripsi,
+berat, brand, upload foto + video, dan varian - harga/stock **boleh beda-beda
+per varian**.
+
+**Kategori** diisi lewat search box dengan autocomplete dari daftar ~1700
+kategori Shopee (di-scrape sekali dari BigSeller, lihat bawah). Ketik lalu
+pilih dari dropdown - hasil pilihan langsung persis, tidak perlu tebak-tebak
+keyword. Kalau daftar belum pernah di-scrape, ketikan manual tetap dipakai
+sebagai kata kunci pencarian langsung saat upload (fallback, tetap jalan).
+
+Untuk isi/refresh daftar kategori:
+
+```bash
+bigseller-upload scrape-categories --shop-id 1234567
+```
+
+`--shop-id` bisa ambil dari toko mana pun yang sudah terhubung (kategori
+Shopee sama untuk semua toko) - buka DevTools > Network di form Add Product,
+cari request ke `category/queryList/shopee.json`, lihat query param `shopId`.
+Prosesnya beberapa menit (ada rate limit dari BigSeller, sudah di-handle
+otomatis dengan retry). Hasilnya tersimpan di
+`bigseller_auto_uploader/data_files/categories_shopee_id.json` dan otomatis
+kepakai lagi di web UI.
+
+Ada dua cara isi varian:
 
 - **Ketik manual** - tambah baris satu-satu, cocok buat varian sedikit.
 - **Upload Excel/CSV** - download dulu template-nya (tombol "Download Template
@@ -198,6 +220,8 @@ bigseller_auto_uploader/   # package inti (importable, terinstall via pip)
   cli.py                    #   entry point `bigseller-upload`
   webapp.py                 #   entry point `bigseller-ui` (Flask)
   variant_file.py           #   parser upload Excel/CSV varian + generator template
+  scrape_categories.py      #   scraper tree kategori Shopee (dipakai `bigseller-upload scrape-categories`)
+  data_files/                #   categories_shopee_id.json (~1700 kategori, ikut ter-bundle di package)
   templates/                #   HTML form web UI
 data/                       # products.csv, variants.csv, foto/video (gitignored)
 jobs/{pending,done,failed}/ # antrian job dari web UI (gitignored)

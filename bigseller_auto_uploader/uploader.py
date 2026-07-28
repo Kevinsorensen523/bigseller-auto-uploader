@@ -28,6 +28,28 @@ def take_screenshot(page, job_id: str, step: str) -> str:
     return str(path)
 
 
+def dismiss_overlays(page) -> None:
+    """BigSeller kadang nampilin overlay non-blocking-secara-logic tapi
+    blocking-secara-visual di halaman listing: guide tooltip "Switch
+    Language" dan popup "Download BigSeller APP". Keduanya nutupi tombol
+    "Add Product" dan bikin klik gagal (element intercepts pointer events).
+    Tutup dulu kalau ada, sebelum interaksi lain."""
+    close_button = page.get_by_role("button", name="Close", exact=True)
+    try:
+        if close_button.count() > 0 and close_button.first.is_visible():
+            close_button.first.click(timeout=2000)
+            page.wait_for_timeout(300)
+    except Exception:
+        pass
+    # Guide tooltip "Switch Language" adalah tooltip non-modal tanpa label
+    # unik - klik di area kosong halaman cukup untuk menutupnya.
+    try:
+        page.mouse.click(700, 700)
+        page.wait_for_timeout(200)
+    except Exception:
+        pass
+
+
 def navigate_to_add_product(context):
     """Dari halaman listing, buka form Tambah Produk. Tombol "Add Product"
     membuka TAB BARU (.../listing/shopee/add.htm) - fungsi ini mengembalikan
@@ -37,6 +59,7 @@ def navigate_to_add_product(context):
     listing_page.goto(config.BIGSELLER_LISTING_URL)
     listing_page.wait_for_load_state("networkidle")
     listing_page.wait_for_timeout(config.ACTION_DELAY_MS)
+    dismiss_overlays(listing_page)
 
     add_product_button = listing_page.get_by_role("button", name="Add Product")
     with context.expect_page() as new_page_info:
@@ -63,8 +86,10 @@ def select_category(page, keyword: str, match_text: str | None = None):
     tabel SKU-Stock-Price - ganti kategori setelah tabel terisi akan
     me-reset seluruh tabel tsb (perilaku BigSeller, bukan bug kita)."""
     page.locator(SELECT_CATEGORY_BUTTON).click()
+    search_input = page.locator(CATEGORY_SEARCH_INPUT)
+    search_input.wait_for(state="visible", timeout=config.DEFAULT_TIMEOUT_MS)
     page.wait_for_timeout(config.ACTION_DELAY_MS)
-    page.locator(CATEGORY_SEARCH_INPUT).fill(keyword)
+    search_input.fill(keyword)
     page.locator(CATEGORY_SEARCH_BUTTON).click()
     page.wait_for_timeout(1500)
 
@@ -175,8 +200,10 @@ def set_weight(page, grams):
 
 def save_product(page, publish: bool = False) -> tuple[bool, str]:
     """Klik Save to Draft (default, aman) atau Save & Publish (kalau
-    publish=True). Sukses dideteksi dari redirect keluar halaman add.htm
-    kembali ke listing."""
+    publish=True). Sukses dideteksi dari redirect KELUAR dari URL saat ini
+    (dipanggil dari halaman .../add.htm ATAU .../edit/<id>.htm - keduanya
+    redirect balik ke listing setelah save berhasil)."""
+    starting_url = page.url
     if publish:
         page.locator(SAVE_PUBLISH_BUTTON).click()
         page.wait_for_timeout(800)
@@ -185,7 +212,7 @@ def save_product(page, publish: bool = False) -> tuple[bool, str]:
         page.locator(SAVE_DRAFT_BUTTON).click()
 
     try:
-        page.wait_for_url(lambda u: "add.htm" not in u, timeout=25000)
+        page.wait_for_url(lambda u: u != starting_url, timeout=25000)
         return True, "OK"
     except Exception:
         return False, "Tidak redirect setelah save - kemungkinan ada field wajib yang belum valid"

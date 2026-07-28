@@ -69,6 +69,29 @@ def run_csv():
     legacy_main.run()
 
 
+def scrape_categories(shop_id: int):
+    from .scrape_categories import save_categories, scrape_all_categories
+
+    if not config.has_credentials():
+        print("BIGSELLER_USERNAME/BIGSELLER_PASSWORD belum diisi di .env.")
+        sys.exit(1)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=config.HEADLESS)
+        context, page = login_module.ensure_logged_in(browser, viewport={"width": 1440, "height": 900})
+
+        if not login_module.is_logged_in(page):
+            print("Login gagal.")
+            browser.close()
+            sys.exit(1)
+
+        print("Mulai scrape kategori (bisa beberapa menit, ~1700 kategori)...")
+        leaves = scrape_all_categories(page.request, shop_id=shop_id)
+        save_categories(leaves)
+
+        browser.close()
+
+
 def main():
     parser = argparse.ArgumentParser(prog="bigseller-upload")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -79,12 +102,24 @@ def main():
 
     sub.add_parser("run-csv", help="Proses dari data/products.csv + data/variants.csv (mode lama)")
 
+    scrape_p = sub.add_parser(
+        "scrape-categories", help="Scrape/refresh daftar kategori Shopee untuk dropdown di web UI"
+    )
+    scrape_p.add_argument(
+        "--shop-id",
+        type=int,
+        required=True,
+        help="Shop ID toko mana pun (kategori Shopee sama untuk semua toko) - lihat di URL API network tab",
+    )
+
     args = parser.parse_args()
 
     if args.command == "run-queue":
         run_queue(publish=args.publish, limit=args.limit)
     elif args.command == "run-csv":
         run_csv()
+    elif args.command == "scrape-categories":
+        scrape_categories(shop_id=args.shop_id)
 
 
 if __name__ == "__main__":
