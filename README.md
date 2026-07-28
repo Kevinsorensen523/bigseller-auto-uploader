@@ -94,25 +94,23 @@ Buka `http://127.0.0.1:5151`. Isi form: store, nama produk, kategori, deskripsi,
 berat, brand, upload foto + video, dan varian - harga/stock **boleh beda-beda
 per varian**.
 
-**Kategori** diisi lewat search box dengan autocomplete dari daftar ~1700
-kategori Shopee (di-scrape sekali dari BigSeller, lihat bawah). Ketik lalu
-pilih dari dropdown - hasil pilihan langsung persis, tidak perlu tebak-tebak
-keyword. Kalau daftar belum pernah di-scrape, ketikan manual tetap dipakai
-sebagai kata kunci pencarian langsung saat upload (fallback, tetap jalan).
-
-Untuk isi/refresh daftar kategori:
+**Store** dan **Kategori** sama-sama diisi lewat search box dengan autocomplete
+(bukan ketik manual/tebak-tebak lagi) - data di-scrape sekali dari BigSeller:
 
 ```bash
-bigseller-upload scrape-categories --shop-id 1234567
+bigseller-upload scrape-stores                    # daftar toko yang terhubung
+bigseller-upload scrape-categories --shop-id 1234567  # ~1700 kategori Shopee
 ```
 
 `--shop-id` bisa ambil dari toko mana pun yang sudah terhubung (kategori
 Shopee sama untuk semua toko) - buka DevTools > Network di form Add Product,
-cari request ke `category/queryList/shopee.json`, lihat query param `shopId`.
-Prosesnya beberapa menit (ada rate limit dari BigSeller, sudah di-handle
-otomatis dengan retry). Hasilnya tersimpan di
-`bigseller_auto_uploader/data_files/categories_shopee_id.json` dan otomatis
-kepakai lagi di web UI.
+cari request ke `category/queryList/shopee.json`, lihat query param `shopId`
+(atau lihat isi `stores_shopee.json` setelah `scrape-stores`, field `id`).
+Scrape kategori butuh beberapa menit (ada rate limit dari BigSeller, sudah
+di-handle otomatis dengan retry); scrape toko cuma 1 API call, instan.
+Hasilnya tersimpan di `bigseller_auto_uploader/data_files/` dan otomatis
+kepakai lagi di web UI. Kalau daftar belum pernah di-scrape, ketikan manual
+tetap dipakai langsung saat upload (fallback, tetap jalan).
 
 Ada tiga cara isi varian:
 
@@ -227,7 +225,8 @@ bigseller_auto_uploader/   # package inti (importable, terinstall via pip)
   webapp.py                 #   entry point `bigseller-ui` (Flask)
   variant_file.py           #   parser upload Excel/CSV varian + generator template
   scrape_categories.py      #   scraper tree kategori Shopee (dipakai `bigseller-upload scrape-categories`)
-  data_files/                #   categories_shopee_id.json (~1700 kategori, ikut ter-bundle di package)
+  scrape_stores.py          #   scraper daftar toko Shopee (dipakai `bigseller-upload scrape-stores`)
+  data_files/                #   categories_shopee_id.json, stores_shopee.json (ikut ter-bundle di package)
   templates/                #   HTML form web UI
 data/                       # products.csv, variants.csv, foto/video (gitignored)
 jobs/{pending,done,failed}/ # antrian job dari web UI (gitignored)

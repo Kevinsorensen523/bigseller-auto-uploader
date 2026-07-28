@@ -50,8 +50,12 @@ Jalankan <code>bigseller-upload run-queue</code> di terminal untuk memprosesnya 
 
   <fieldset>
     <legend>Informasi Dasar</legend>
-    <label>Store Shopee (nama persis seperti di dropdown BigSeller) *</label>
-    <input type="text" name="store_name" required placeholder="mis. Click Acc Shopee">
+    <label>Store Shopee *</label>
+    <div style="position:relative;">
+      <input type="text" id="storeBox" autocomplete="off" placeholder="Ketik untuk cari toko, mis. Click Acc" required>
+      <div id="storeResults" style="display:none; position:absolute; z-index:10; background:#fff; border:1px solid #ccc; border-radius:6px; width:100%; max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.1);"></div>
+    </div>
+    <input type="hidden" name="store_name" id="storeName">
 
     <label>Nama Produk *</label>
     <input type="text" name="product_name" required maxlength="255">
@@ -313,6 +317,49 @@ categoryResults.addEventListener('click', (e) => {
 
 document.addEventListener('click', (e) => {
   if (e.target !== categoryBox) categoryResults.style.display = 'none';
+});
+
+// --- Autocomplete store, dari daftar hasil scrape (/stores.json) ---
+let allStores = [];
+fetch('/stores.json')
+  .then(r => r.json())
+  .then(data => { allStores = data.stores || []; })
+  .catch(() => {});
+
+const storeBox = document.getElementById('storeBox');
+const storeResults = document.getElementById('storeResults');
+const storeName = document.getElementById('storeName');
+
+storeBox.addEventListener('input', () => {
+  const q = storeBox.value.trim().toLowerCase();
+  // Fallback: kalau daftar kosong (belum pernah di-scrape), ketikan langsung dipakai.
+  storeName.value = storeBox.value.trim();
+
+  if (!q || allStores.length === 0) {
+    storeResults.style.display = 'none';
+    return;
+  }
+  const matches = allStores.filter(s => s.name.toLowerCase().includes(q)).slice(0, 20);
+  if (matches.length === 0) {
+    storeResults.style.display = 'none';
+    return;
+  }
+  storeResults.innerHTML = matches.map(s =>
+    `<div class="store-option" data-name="${s.name.replace(/"/g, '&quot;')}" style="padding:8px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid #f0f0f0;">${s.name}</div>`
+  ).join('');
+  storeResults.style.display = 'block';
+});
+
+storeResults.addEventListener('click', (e) => {
+  const opt = e.target.closest('.store-option');
+  if (!opt) return;
+  storeBox.value = opt.dataset.name;
+  storeName.value = opt.dataset.name;
+  storeResults.style.display = 'none';
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target !== storeBox) storeResults.style.display = 'none';
 });
 </script>
 

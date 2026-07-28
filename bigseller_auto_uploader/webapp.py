@@ -5,6 +5,7 @@ from flask import Flask, flash, redirect, render_template, request, send_file, u
 
 from . import config
 from .scrape_categories import load_categories
+from .scrape_stores import load_stores
 from .variant_file import build_template_xlsx, parse_variant_file
 
 app = Flask(__name__)
@@ -102,6 +103,11 @@ def variant_template():
 @app.route("/categories.json")
 def categories_json():
     return {"categories": load_categories()}
+
+
+@app.route("/stores.json")
+def stores_json():
+    return {"stores": load_stores()}
 
 
 @app.route("/queue")
