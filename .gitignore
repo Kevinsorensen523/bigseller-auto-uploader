@@ -19,9 +19,11 @@ data/images/*
 jobs/pending/*
 jobs/done/*
 jobs/failed/*
+jobs/skipped/*
 !jobs/pending/.gitkeep
 !jobs/done/.gitkeep
 !jobs/failed/.gitkeep
+!jobs/skipped/.gitkeep
 
 # Package build artifacts
 *.egg-info/

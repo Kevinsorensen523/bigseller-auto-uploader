@@ -221,8 +221,12 @@ def run_status():
 
 
 def main():
+    import webbrowser
+
     _ensure_job_dirs()
-    print(f"Web UI jalan di http://127.0.0.1:5151  (project: {config.PROJECT_DIR})")
+    url = "http://127.0.0.1:5151"
+    print(f"Web UI jalan di {url}  (project: {config.PROJECT_DIR})")
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
     app.run(host="127.0.0.1", port=5151, debug=False)
 
 
