@@ -89,9 +89,9 @@ Jalankan <code>bigseller-upload run-queue</code> di terminal untuk memprosesnya 
     <label>Foto Produk (bisa pilih banyak file, JPG/JPEG/PNG) *</label>
     <input type="file" name="images" accept=".jpg,.jpeg,.png" multiple required>
 
-    <label>Video Produk (opsional, MP4, maks 30MB, 10-60 detik)</label>
+    <label>Video Produk (opsional, MP4, 10-60 detik)</label>
     <input type="file" name="video" accept=".mp4">
-    <p class="hint">Video resolusi tinggi (di atas ~1080p) sering gagal ter-upload di BigSeller walau ukurannya kecil - kompres/downscale dulu kalau perlu.</p>
+    <p class="hint">Video yang terlalu besar atau resolusinya kegedean (di atas 1080p) otomatis dikompres/di-downscale saat disubmit.</p>
   </fieldset>
 
   <fieldset id="variantSection">

@@ -38,6 +38,14 @@ ACTION_DELAY_MS = _get_int("ACTION_DELAY_MS", 800)
 DELAY_BETWEEN_PRODUCTS_SEC = _get_int("DELAY_BETWEEN_PRODUCTS_SEC", 5)
 DEFAULT_TIMEOUT_MS = _get_int("DEFAULT_TIMEOUT_MS", 15000)
 
+# BigSeller batasi video produk 30MB & video resolusi tinggi (mis. 2160x3840
+# dari HP modern) gagal ter-upload tanpa error meski di bawah limit ukuran
+# (lihat uploader.upload_video). VIDEO_MAX_SIZE_MB dikasih margin di bawah 30
+# supaya masih aman setelah overhead container mp4.
+VIDEO_AUTO_COMPRESS = _get_bool("VIDEO_AUTO_COMPRESS", True)
+VIDEO_MAX_SIZE_MB = _get_int("VIDEO_MAX_SIZE_MB", 25)
+VIDEO_MAX_DIMENSION = _get_int("VIDEO_MAX_DIMENSION", 1920)
+
 DATA_DIR = PROJECT_DIR / "data"
 LOGS_DIR = PROJECT_DIR / "logs"
 PRODUCTS_CSV = DATA_DIR / "products.csv"
@@ -49,6 +57,7 @@ JOBS_DIR = PROJECT_DIR / "jobs"
 JOBS_PENDING_DIR = JOBS_DIR / "pending"
 JOBS_DONE_DIR = JOBS_DIR / "done"
 JOBS_FAILED_DIR = JOBS_DIR / "failed"
+JOBS_SKIPPED_DIR = JOBS_DIR / "skipped"
 
 LOGS_DIR.mkdir(exist_ok=True)
 

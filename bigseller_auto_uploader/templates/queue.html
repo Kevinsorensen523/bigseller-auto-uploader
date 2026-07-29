@@ -6,17 +6,30 @@
 <style>
   body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; color: #222; }
   .flash { background: #eafbea; border: 1px solid #8bd98b; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
-  .job { border: 1px solid #ddd; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
+  .job { border: 1px solid #ddd; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .job h3 { margin: 0 0 6px 0; font-size: 15px; }
   .job .meta { font-size: 12px; color: #777; }
+  .job .actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .job .actions button { font-size: 12px; padding: 5px 10px; border-radius: 5px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+  .job .actions button:hover { background: #f2f2f2; }
+  .job .actions button.danger { border-color: #e28; color: #c33; }
   a.back { display: inline-block; margin-bottom: 16px; color: #4934b2; text-decoration: none; }
   code { background: #f2f2f2; padding: 2px 6px; border-radius: 4px; }
+  .counts { display: flex; gap: 10px; margin: 12px 0 20px 0; }
+  .counts span { background: #f2f2f2; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+  .counts span b { font-size: 15px; }
+  .run-panel { border: 1px solid #d8d0ff; background: #f7f5ff; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; }
+  .run-panel label { font-size: 13px; margin-right: 12px; }
+  .run-panel button { background: #4934b2; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px; }
+  .run-panel button:disabled { background: #aaa; cursor: default; }
+  #runLog { background: #111; color: #d6ffd6; font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 10px 12px; border-radius: 6px; margin-top: 10px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; display: none; }
+  h2.status-heading { font-size: 15px; margin: 26px 0 10px 0; text-transform: capitalize; }
 </style>
 </head>
 <body>
 
 <a class="back" href="/">&larr; Tambah produk lagi</a>
-<h1>Antrian ({{ jobs|length }} job pending)</h1>
+<h1>Antrian</h1>
 
 {% with messages = get_flashed_messages() %}
   {% if messages %}
@@ -24,23 +37,102 @@
   {% endif %}
 {% endwith %}
 
-<p>Jalankan di terminal (dari folder project ini) untuk memproses semua job di bawah:</p>
-<p><code>bigseller-upload run-queue</code> &nbsp; (default: Save to Draft)<br>
-<code>bigseller-upload run-queue --publish</code> &nbsp; (langsung publish)</p>
+<div class="counts">
+  <span>Pending: <b>{{ counts.pending }}</b></span>
+  <span>Done: <b>{{ counts.done }}</b></span>
+  <span>Failed: <b>{{ counts.failed }}</b></span>
+  <span>Skipped: <b>{{ counts.skipped }}</b></span>
+</div>
 
-{% for job in jobs %}
+<div class="run-panel">
+  <form id="runForm" method="post" action="/run/start">
+    <label><input type="checkbox" name="publish"> Langsung publish (default: Save to Draft)</label>
+    <button id="runBtn" type="submit" {% if run_state.running %}disabled{% endif %}>
+      {% if run_state.running %}Sedang jalan...{% else %}Jalankan Sekarang{% endif %}
+    </button>
+  </form>
+  <p style="font-size:12px;color:#777;margin:8px 0 0 0;">
+    Browser Playwright akan kebuka di komputer ini. Kalau diminta captcha login, isi manual di window browser itu.
+  </p>
+  <pre id="runLog"></pre>
+</div>
+
+{% for status in ["pending", "done", "failed", "skipped"] %}
+<h2 class="status-heading">{{ status }} ({{ counts[status] }})</h2>
+{% for job in jobs_by_status[status] %}
 <div class="job">
-  <h3>{{ job.product_name or '(tanpa nama)' }}</h3>
-  <div class="meta">
-    Store: {{ job.store_name }} &middot;
-    Kategori: {{ job.category_keyword }} &middot;
-    {% if job.variants %}{{ job.variants|length }} varian{% else %}single variation{% endif %} &middot;
-    {{ job.images|length }} foto{% if job.video %} + video{% endif %}
+  <div>
+    <h3>{{ job.product_name or '(tanpa nama)' }}</h3>
+    <div class="meta">
+      Store: {{ job.store_name }} &middot;
+      Kategori: {{ job.category_keyword }} &middot;
+      {% if job.variants %}{{ job.variants|length }} varian{% else %}single variation{% endif %} &middot;
+      {{ job.images|length }} foto{% if job.video %} + video{% endif %}
+      &middot; <code>{{ job.job_id }}</code>
+    </div>
+  </div>
+  <div class="actions">
+    {% if status == "pending" %}
+      <form method="post" action="/jobs/pending/{{ job.job_id }}/done" onsubmit="return confirm('Tandai job ini sudah selesai/sudah keupload manual?');">
+        <button type="submit">Tandai Selesai</button>
+      </form>
+      <form method="post" action="/jobs/pending/{{ job.job_id }}/skip">
+        <button type="submit">Skip</button>
+      </form>
+    {% elif status == "failed" or status == "skipped" %}
+      <form method="post" action="/jobs/{{ status }}/{{ job.job_id }}/restore">
+        <button type="submit">Kembalikan ke Pending</button>
+      </form>
+    {% endif %}
+    {% if status != "done" %}
+      <form method="post" action="/jobs/{{ status }}/{{ job.job_id }}/delete" onsubmit="return confirm('Hapus job ini permanen?');">
+        <button type="submit" class="danger">Hapus</button>
+      </form>
+    {% endif %}
   </div>
 </div>
 {% else %}
-<p>Belum ada job di antrian.</p>
+<p style="font-size:13px;color:#999;">(kosong)</p>
 {% endfor %}
+{% endfor %}
+
+<script>
+  const runBtn = document.getElementById('runBtn');
+  const runLog = document.getElementById('runLog');
+  let polling = false;
+
+  function renderLogs(logs) {
+    if (!logs.length) return;
+    runLog.style.display = 'block';
+    runLog.textContent = logs.join('\n');
+    runLog.scrollTop = runLog.scrollHeight;
+  }
+
+  function poll() {
+    fetch('/run/status').then(r => r.json()).then(state => {
+      renderLogs(state.logs);
+      if (state.running) {
+        runBtn.disabled = true;
+        runBtn.textContent = 'Sedang jalan...';
+        setTimeout(poll, 1500);
+      } else if (polling) {
+        // baru selesai - reload supaya daftar job & counts ke-refresh
+        location.reload();
+      }
+    });
+  }
+
+  document.getElementById('runForm').addEventListener('submit', () => {
+    polling = true;
+    setTimeout(poll, 1000);
+  });
+
+  {% if run_state.running %}
+    polling = true;
+    renderLogs({{ run_state.logs|tojson }});
+    setTimeout(poll, 1500);
+  {% endif %}
+</script>
 
 </body>
 </html>
