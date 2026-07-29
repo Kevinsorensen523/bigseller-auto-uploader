@@ -29,8 +29,10 @@ build_script:
       New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/jobs/failed | Out-Null
       New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/jobs/skipped | Out-Null
 
-      Compress-Archive -Path dist/bigseller-uploader/* -DestinationPath bigseller-uploader-windows.zip
+      Write-Host "Isi dist/bigseller-uploader:"
+      Get-ChildItem dist/bigseller-uploader | Select-Object Name, Length
 
 artifacts:
-  - path: bigseller-uploader-windows.zip
+  - path: dist\bigseller-uploader
     name: bigseller-uploader-windows
+    type: zip
