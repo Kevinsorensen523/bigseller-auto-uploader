@@ -1,0 +1,36 @@
+image: Visual Studio 2022
+build: off
+
+environment:
+  PYTHON: "C:\\Python312-x64"
+  PLAYWRIGHT_BROWSERS_PATH: "0"
+
+build_script:
+  - ps: |
+      $env:PATH = "$env:PYTHON;$env:PYTHON\Scripts;$env:PATH"
+      python --version
+      pip install -e .
+      pip install pyinstaller
+      python -m playwright install chromium
+
+      $pkgDir = python -c "import playwright, os; print(os.path.dirname(playwright.__file__))"
+      $browsersDir = Get-ChildItem -Path $pkgDir -Recurse -Directory -Filter ".local-browsers" | Select-Object -First 1 -ExpandProperty FullName
+      if (-not $browsersDir) { throw "Folder .local-browsers tidak ketemu setelah playwright install chromium" }
+
+      pyinstaller run_ui.py --name bigseller-uploader --onedir --noconfirm `
+        --add-data "bigseller_auto_uploader/templates;bigseller_auto_uploader/templates" `
+        --add-data "$browsersDir;playwright/driver/package/.local-browsers" `
+        --collect-all playwright
+
+      Copy-Item .env.example dist/bigseller-uploader/.env.example
+      New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/data/images | Out-Null
+      New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/jobs/pending | Out-Null
+      New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/jobs/done | Out-Null
+      New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/jobs/failed | Out-Null
+      New-Item -ItemType Directory -Force -Path dist/bigseller-uploader/jobs/skipped | Out-Null
+
+      Compress-Archive -Path dist/bigseller-uploader/* -DestinationPath bigseller-uploader-windows.zip
+
+artifacts:
+  - path: bigseller-uploader-windows.zip
+    name: bigseller-uploader-windows
